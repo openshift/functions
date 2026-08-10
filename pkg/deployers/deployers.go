@@ -12,7 +12,7 @@ const (
 	Keda       = "keda"
 
 	// Default deployer absent any other configuration.
-	Default = Knative
+	Default = Kubernetes
 )
 
 // Resolve returns the deployer a function deploys with: the one it asks for
