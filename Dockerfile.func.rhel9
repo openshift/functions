@@ -1,0 +1,33 @@
+ARG GO_BUILDER=registry.ci.openshift.org/openshift/release:rhel-9-release-golang-1.26-openshift-5.0
+ARG GO_RUNTIME=registry.access.redhat.com/ubi9/ubi-minimal
+
+# Reference to the func-util image, baked into the func binary at build time
+# so it knows which image to use for in-cluster helper tasks (socat, tar,
+# deploy/scaffold/s2i pipeline steps).
+ARG FUNC_UTILS_IMG=quay.io/redhat-user-workloads/ocp-serverless-tenant/functions-utils@sha256:90bf0617eeb55c718f1ff9fb2af930330b3d609e8f07e9091965e351923f1329
+
+FROM $GO_BUILDER as builder
+
+ARG FUNC_UTILS_IMG
+
+WORKDIR /workspace
+COPY . .
+
+ENV CGO_ENABLED=1
+ENV GOEXPERIMENT=strictfipsruntime
+ENV GOFLAGS=''
+
+RUN go build -tags strictfipsruntime,exclude_graphdriver_btrfs \
+	-ldflags "-X knative.dev/func/pkg/k8s.SocatImage=$FUNC_UTILS_IMG \
+	-X knative.dev/func/pkg/k8s.TarImage=$FUNC_UTILS_IMG \
+	-X knative.dev/func/pkg/pipelines/tekton.FuncUtilImage=$FUNC_UTILS_IMG" \
+	-o /usr/bin/func ./cmd/func
+
+FROM $GO_RUNTIME
+
+COPY --from=builder /usr/bin/func /usr/bin/func
+COPY LICENSE /licenses/
+
+USER 65532
+
+ENTRYPOINT ["/usr/bin/func"]
