@@ -119,7 +119,7 @@ require (
 	github.com/aws/smithy-go v1.25.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blendle/zapdriver v1.3.1 // indirect
-	github.com/buildpacks/imgutil v0.0.0-20251202182233-51c1c8c186ea // indirect
+	github.com/buildpacks/imgutil v0.0.0-20260715132717-40ca3490b49e // indirect
 	github.com/buildpacks/libcnb v1.30.3 // indirect
 	github.com/buildpacks/lifecycle v0.21.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect

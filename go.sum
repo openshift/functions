@@ -191,8 +191,8 @@ github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
 github.com/blendle/zapdriver v1.3.1 h1:C3dydBOWYRiOk+B8X9IVZ5IOe+7cl+tGOexN4QqHfpE=
 github.com/blendle/zapdriver v1.3.1/go.mod h1:mdXfREi6u5MArG4j9fewC+FGnXaBR+T4Ox4J2u4eHCc=
-github.com/buildpacks/imgutil v0.0.0-20251202182233-51c1c8c186ea h1:91PTHjeL3uzjr2/jk1SJuFZp3ObodKawy79BKdio+VE=
-github.com/buildpacks/imgutil v0.0.0-20251202182233-51c1c8c186ea/go.mod h1:yw2U9Ec8KUk7jWY97K0+e6GqrUAr05uTK6LwOEZyupw=
+github.com/buildpacks/imgutil v0.0.0-20260715132717-40ca3490b49e h1:mUevA4UuzrnUl/5EiQ1f7DfC9sGdKtFJFzoRYn8Urvk=
+github.com/buildpacks/imgutil v0.0.0-20260715132717-40ca3490b49e/go.mod h1:EBy9ZOatKkTBAWOgN2Y0aNV4P40dOdGyzzB9q2a5HBE=
 github.com/buildpacks/libcnb v1.30.3 h1:JtFMFPO2450uDLzpE1b50TvmM1GEZa8YT9cQ2ZZtHqA=
 github.com/buildpacks/libcnb v1.30.3/go.mod h1:JPb1vC7HQcGK0oONfqJvsYzOjw3be+WBbQ0KYOIhNvA=
 github.com/buildpacks/lifecycle v0.21.0 h1:s2okNv1I4rETBC4CRm4ly7DRr5eTqx1bpKXyf+ywVms=
