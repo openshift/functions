@@ -42,7 +42,7 @@ spec:
     value:
     - GO_BUILDER=brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.26
   - name: prefetch-input
-    value: '{"type": "gomod", "path": "."}'
+    value: '[{"type": "gomod", "path": "."}, {"type": "rpm"}]'
   - name: hermetic
     value: "true"
   pipelineSpec:
