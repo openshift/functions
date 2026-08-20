@@ -12,7 +12,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
-	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.12.1-0.20260605190426-37f5cc9e58a7
+	github.com/awslabs/amazon-ecr-credential-helper/ecr-login 2a415207a26f
 	github.com/blang/semver/v4 v4.0.0
 	github.com/buildpacks/pack v0.40.1
 	github.com/chainguard-dev/git-urls v1.0.2
