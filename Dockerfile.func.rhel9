@@ -1,4 +1,4 @@
-ARG GO_BUILDER=registry.ci.openshift.org/openshift/release:rhel-9-release-golang-1.26-openshift-5.0
+ARG GO_BUILDER=brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.26
 ARG GO_RUNTIME=registry.access.redhat.com/ubi9/ubi-minimal
 
 # Reference to the func-util image, baked into the func binary at build time
