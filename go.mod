@@ -34,7 +34,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/heroku/color v0.0.6
-	github.com/hinshun/vt10x v0.0.0-20220228203356-1ab2cad5fd82
+	github.com/hinshun/vt10x v0.0.0-20220301184237-5011da428d02
 	github.com/kedacore/http-add-on v0.12.0
 	github.com/manifestival/client-go-client v0.6.0
 	github.com/manifestival/manifestival v0.7.2
