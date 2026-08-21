@@ -33,13 +33,16 @@ This is essential because:
 - `create` tool: path = absolute path to directory where Function will be created
 - `deploy` tool: path = absolute path to Function directory (where func.yaml exists)
 - `build` tool: path = absolute path to Function directory (where func.yaml exists)
+- `invoke` tool: path = absolute path to Function directory (where func.yaml exists)
 - `config_*_list`, `config_*_add`, `config_*_remove` tools: path = absolute path to Function directory (where func.yaml exists)
+- `run` tool: path = absolute path to Function directory (where func.yaml exists)
+- `run_stop` tool: path = the SAME absolute path passed to `run` when starting it
 
 **IMPORTANT:** You must use absolute paths (e.g., `/Users/name/myproject/myfunc`), NOT relative paths (e.g., `.` or `myfunc`). The MCP server process runs in a different directory than your current working directory, so relative paths will not resolve correctly.
 
 **Exceptions:**
 - The `list` tool operates on the cluster, not local files, so it does NOT use a path parameter (it uses namespace instead)
-- The `delete` tool requires exactly one of `path` or `name`; it does NOT support a no-argument CWD mode (the MCP server process has its own working directory unrelated to the Function being managed)
+- The `delete` and `describe` tools each require exactly one of `path` or `name`; they do NOT support a no-argument CWD mode (the MCP server process has its own working directory unrelated to the Function being managed)
 
 ## Deployment Behavior
 
@@ -53,13 +56,24 @@ This is essential because:
 ### General Rules
 
 **CRITICAL:** Before invoking ANY tool, ALWAYS read its help resource first to understand parameters and usage:
+- Before 'version' → Read `func://help/version`
 - Before 'create' → Read `func://help/create`
 - Before 'deploy' → Read `func://help/deploy`
 - Before 'build' → Read `func://help/build`
+- Before 'invoke' → Read `func://help/invoke`
 - Before 'list' → Read `func://help/list`
+- Before 'describe' → Read `func://help/describe`
 - Before 'delete' → Read `func://help/delete`
+- Before 'run' → Read `func://help/run`
 
 The help text provides authoritative parameter information and usage context.
+
+### version
+
+- **FIRST:** Read `func://help/version` for authoritative usage information
+- Takes no parameters
+- Reports the version (and git commit hash, when available) of the func client binary being driven
+- Use this to gate usage of newer tools/flags on the version of func actually installed, before assuming they are supported
 
 ### create
 
@@ -124,12 +138,35 @@ A first-time deploy can be detected by checking the func.yaml for a value in the
 - Uses same builder settings as deploy would use
 - The user should be notified this is an unnecessary step if they intend to deploy, as building is handled as part of deployment
 
+### invoke
+
+- **FIRST:** Read `func://help/invoke` for authoritative usage information
+- Sends a test request to a running Function instance, either local or remote
+- **REQUIRED parameters:**
+  - `path` (directory containing the Function to invoke)
+- **Optional** `target` parameter: "local", "remote", or a URL. Defaults to preferring a locally running instance over remote
+- If `data` and `file` are both omitted, a real default payload is still sent: `{"message":"Hello World"}` with content-type `application/json`, source `/boson/fn`, type `boson.fn`, and method `POST`. This is NOT an empty/no-op probe — the Function's handler actually runs against this payload
+- **If using `file`:** you MUST pass an ABSOLUTE path, just like `path`. `file` is resolved relative to the MCP server process's working directory (NOT your current working directory and NOT relative to the `path` parameter), so a relative value will often fail or read the wrong file
+- **CAUTION:** Invoking a Function executes its handler and may trigger arbitrary, real side effects (e.g. sending an email, charging a payment, writing to a database) — this is especially true with `target: "remote"`, which hits the live deployed instance. Do not invoke automatically without considering whether the Function's handler is safe to run; when in doubt, confirm with the user first, particularly before invoking a remote/production instance
+- An error is returned if the invocation fails (e.g. non-2xx HTTP response), so a successful call without an error confirms the Function responded correctly
+
 ### list
 
 - **FIRST:** Read `func://help/list` for authoritative usage information
 - Does NOT use path parameter (operates on cluster, not local files)
 - Optional `namespace` parameter to list Functions in specific namespace
 - Returns list of deployed Functions in current/specified namespace
+
+### describe
+
+- **FIRST:** Read `func://help/describe` for authoritative usage information
+- Describes a **deployed** Function instance on the cluster; it never just reads local `func.yaml`. This tool will fail if the Function has not yet been deployed (e.g. calling it right after 'create' but before 'deploy' is a usage error, not a tool bug)
+- Supports TWO modes (mutually exclusive):
+  1. **Describe by PATH:** Provide 'path' parameter (reads the Function's name/namespace from func.yaml at that path, then describes whatever is deployed for that Function)
+  2. **Describe by NAME:** Provide 'name' parameter (describes the named Function on the cluster)
+- Exactly ONE of 'path' or 'name' must be provided, not both
+- 'namespace' is only valid together with 'name'; providing both 'path' and 'namespace' is rejected, since path mode already determines the namespace from the Function's own deploy identity
+- Read-only; does not modify local files or cluster resources
 
 ### delete
 
@@ -139,6 +176,45 @@ A first-time deploy can be detected by checking the func.yaml for a value in the
   2. **Delete by NAME:** Provide 'name' parameter (deletes named function from cluster)
 - Exactly ONE of 'path' or 'name' must be provided, not both
 - Deleting does not affect local files (source). Only cluster resources.
+
+### config_git_set, config_git_remove
+
+- **BEFORE calling:** Read `func://help/config/git/set` or `func://help/config/git/remove`
+- Both tools require the `path` parameter (absolute path to the Function directory)
+- `config_git_set` — configures Git source repository settings for pipeline-based builds:
+  - **REQUIRED:** `git_url` (repository URL) and `git_branch` (branch or tag, e.g. `main`)
+  - **OPTIONAL:** `git_dir` (subdirectory in the repo; defaults to repository root when omitted)
+  - **OPTIONAL:** `git_provider` (auto-detected from URL; override only if detection fails)
+  - **OPTIONAL:** `config_local`, `config_cluster`, `config_remote` (boolean flags to control which pipeline resources are created; defaults to local-only when none are specified)
+  - **OPTIONAL:** `gh_access_token` — required only when `config_remote` is true to create a GitHub webhook
+  - Changes are written to `func.yaml` and take effect on the next pipeline build
+- `config_git_remove` — removes Git settings and associated pipeline resources:
+  - **OPTIONAL:** `delete_local` — removes local pipeline template files
+  - **OPTIONAL:** `delete_cluster` — removes cluster credentials and pipeline resources
+  - When neither flag is provided, local resources are removed by default
+- **WARNING:** `config_git_remove` with `delete_cluster: true` is destructive — cluster pipeline resources are deleted permanently
+
+### run
+
+- **FIRST:** Read `func://help/run` for authoritative usage information
+- **REQUIRED parameters:**
+  - `path` (absolute path to the directory containing the Function to run; there is no CWD-based default — the MCP server's own working directory is unrelated to yours)
+- **OPTIONAL parameters:**
+  - `registry` (container registry; only needed if the Function's image must be named/built)
+  - `build` (force a rebuild before running; omit to let func build automatically only when out of date)
+  - `port` (host port to bind; omit to use 8080 or the first available port)
+- Builds the Function locally if needed, starts it, and returns once it is up: `pid` (process ID) and `url`
+- The Function keeps running in the background after the tool call returns
+- Only ONE run may be active per Function path at a time — calling `run` again for a path that is already running fails with a clear error; call `run_stop` first
+- ALWAYS call `run_stop` with the matching `path` when finished, to free the port and clean up
+- Not a cluster operation, so unaffected by read-only mode
+
+### run_stop
+
+- Stops a Function previously started with `run`
+- **REQUIRED:** `path` (absolute) must match the path used to start it with `run`
+- Idempotent: calling `run_stop` for a path with no active run (already stopped, or never started) succeeds with an informational message rather than erroring
+- Not a cluster operation, so unaffected by read-only mode
 
 ### config_envs_list, config_envs_add, config_envs_remove
 
