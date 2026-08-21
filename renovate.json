@@ -3,7 +3,8 @@
     "github>konflux-ci/mintmaker-presets:refresh-rpm-lockfiles"
   ],
   "ignorePaths": [
-    "templates/**"
+    "templates/**",
+    "third_party/**"
   ],
   "gomod": {
     "enabled": false
