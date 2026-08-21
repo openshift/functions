@@ -1,9 +1,39 @@
 package mcp
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// unmarshalStructuredContent decodes a CallToolResult's StructuredContent
+// (which may arrive as json.RawMessage or as an already-decoded map) into out.
+func unmarshalStructuredContent(result *mcp.CallToolResult, out any) error {
+	switch sc := result.StructuredContent.(type) {
+	case json.RawMessage:
+		return json.Unmarshal(sc, out)
+	case nil:
+		return fmt.Errorf("result has no structured content")
+	default:
+		b, err := json.Marshal(sc)
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(b, out)
+	}
+}
+
+// testAbsPath returns a platform-native absolute path for name, suitable for
+// tools which require an absolute path. A POSIX literal such as "/tmp/f" can
+// not be used directly because it is not absolute on Windows.
+func testAbsPath(name string) string {
+	return filepath.Join(os.TempDir(), name)
+}
 
 // validateArgLength validates that the args slice has the expected length based on
 // the number of string flags (2 args each: flag + value) and bool flags (1 arg each).
