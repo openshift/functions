@@ -4,7 +4,7 @@ ARG GO_RUNTIME=registry.access.redhat.com/ubi9/ubi-minimal
 # Reference to the func-util image, baked into the func binary at build time
 # so it knows which image to use for in-cluster helper tasks (socat, tar,
 # deploy/scaffold/s2i pipeline steps).
-ARG FUNC_UTILS_IMG=quay.io/redhat-user-workloads/ocp-serverless-tenant/functions-utils@sha256:622dec27e6a6108654de84a5e3393c0833c014119e1c8865cdbc4aa3259fe6c9
+ARG FUNC_UTILS_IMG=quay.io/redhat-user-workloads/ocp-serverless-tenant/functions-utils@sha256:689fdfe45e7062f09f4d149235fee25960083d818623bbc3afd25a50b03bc5fb
 
 FROM $GO_BUILDER as builder
 
