@@ -1,10 +1,14 @@
 {
   "extends": [
-    "github>konflux-ci/mintmaker-presets:refresh-rpm-lockfiles"
+    "github>konflux-ci/mintmaker//config/renovate/renovate.json",
+    "config:best-practices"
   ],
+  "enabledManagers": ["tekton", "dockerfile", "rpm-lockfile"],
   "ignorePaths": [
     "templates/**",
-    "third_party/**"
+    "third_party/**",
+    "Dockerfile.podman-next",
+    "Dockerfile.utils"
   ],
   "gomod": {
     "enabled": false
