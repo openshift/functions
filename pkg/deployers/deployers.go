@@ -12,7 +12,7 @@ const (
 	Keda       = "keda"
 
 	// Default deployer absent any other configuration.
-	Default = Kubernetes
+	Default = Knative
 )
 
 // ValidateSwitch reports an error if redeploying an already-deployed function

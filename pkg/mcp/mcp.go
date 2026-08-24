@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
@@ -14,6 +15,11 @@ const (
 	name    = "func"
 	title   = "func"
 	version = "0.1.0"
+
+	// EnvMCPWrite is the environment variable that enables write operations
+	// (deploy, delete, and pushing built images) on the MCP server. Set to
+	// "true" to allow mutations; the server runs in read-only mode by default.
+	EnvMCPWrite = "FUNC_ENABLE_MCP_WRITE"
 )
 
 // NOTE: Invoking prompts in some interfaces (such as Claude Code) when all
@@ -24,14 +30,24 @@ const (
 type Server struct {
 	OnInit    func(context.Context) // Invoked when the server is initialized
 	prefix    string                // Command prefix ("func" or "kn func")
-	readonly  atomic.Bool           // disables deploy and delete when true
+	readonly  atomic.Bool           // disables deploy, delete, and pushing built images when true
 	executor  executor
-	transport mcp.Transport // Transport to use (defaults to StdioTransport)
-	impl      *mcp.Server   // implements the protocol
+	transport mcp.Transport  // Transport to use (defaults to StdioTransport)
+	impl      *mcp.Server    // implements the protocol
+	starter   processStarter // starts long-lived "func run" subprocesses
+	runs      *runRegistry   // tracks active local runs, keyed by function path
 }
 
 type executor interface {
 	Execute(ctx context.Context, subcommand string, args ...string) ([]byte, error)
+	// ExecuteSplit runs the command and returns stdout and stderr captured
+	// into separate buffers. Unlike Execute (which uses CombinedOutput and
+	// therefore offers no guarantee about the relative ordering of stdout
+	// and stderr bytes - they're copied by two independently-scheduled
+	// goroutines), ExecuteSplit gives each stream its own buffer, so callers
+	// that need to parse structured output (e.g. JSON) from stdout can do so
+	// without risk of stderr content (warnings, etc.) corrupting the parse.
+	ExecuteSplit(ctx context.Context, subcommand string, args ...string) (stdout, stderr []byte, err error)
 }
 
 type Option func(*Server)
@@ -61,6 +77,14 @@ func WithExecutor(executor executor) Option {
 	}
 }
 
+// WithProcessStarter sets a custom process starter for the "run" tool; used
+// in tests.
+func WithProcessStarter(starter processStarter) Option {
+	return func(s *Server) {
+		s.starter = starter
+	}
+}
+
 // WithTransport sets a custom transport for the server; used in tests.
 func WithTransport(transport mcp.Transport) Option {
 	return func(s *Server) {
@@ -83,6 +107,8 @@ func New(options ...Option) *Server {
 		OnInit:    func(_ context.Context) {},
 	}
 	s.executor = defaultExecutor{s}
+	s.starter = defaultProcessStarter{s}
+	s.runs = newRunRegistry()
 	for _, o := range options {
 		o(s)
 	}
@@ -104,11 +130,16 @@ func New(options ...Option) *Server {
 	// -----
 	// One for each command or command group
 	mcp.AddTool(i, healthCheckTool, s.healthcheckHandler)
+	mcp.AddTool(i, versionTool, s.versionHandler)
 	mcp.AddTool(i, createTool, s.createHandler)
 	mcp.AddTool(i, buildTool, s.buildHandler)
 	mcp.AddTool(i, deployTool, s.deployHandler)
+	mcp.AddTool(i, invokeTool, s.invokeHandler)
 	mcp.AddTool(i, listTool, s.listHandler)
+	mcp.AddTool(i, describeTool, s.describeHandler)
 	mcp.AddTool(i, deleteTool, s.deleteHandler)
+	mcp.AddTool(i, runTool, s.runHandler)
+	mcp.AddTool(i, runStopTool, s.runStopHandler)
 	mcp.AddTool(i, configVolumesListTool, s.configVolumesListHandler)
 	mcp.AddTool(i, configVolumesAddTool, s.configVolumesAddHandler)
 	mcp.AddTool(i, configVolumesRemoveTool, s.configVolumesRemoveHandler)
@@ -123,6 +154,8 @@ func New(options ...Option) *Server {
 	mcp.AddTool(i, repositoryAddTool, s.repositoryAddHandler)
 	mcp.AddTool(i, repositoryRenameTool, s.repositoryRenameHandler)
 	mcp.AddTool(i, repositoryRemoveTool, s.repositoryRemoveHandler)
+	mcp.AddTool(i, configGitSetTool, s.configGitSetHandler)
+	mcp.AddTool(i, configGitRemoveTool, s.configGitRemoveHandler)
 
 	// Resources
 	// ---------
@@ -139,10 +172,13 @@ func New(options ...Option) *Server {
 	// A resource for each command which returns its help
 	// eg. "config volumes add" -> "func://help/config/volumes/add")
 	i.AddResource(newHelpResource(s, "Help", "help for the command root"))
+	i.AddResource(newHelpResource(s, "Version Help", "help for 'version'", "version"))
 	i.AddResource(newHelpResource(s, "Create Help", "help for 'create'", "create"))
 	i.AddResource(newHelpResource(s, "Build Help", "help for 'build'", "build"))
 	i.AddResource(newHelpResource(s, "Deploy Help", "help for 'deploy'", "deploy"))
+	i.AddResource(newHelpResource(s, "Invoke Help", "help for 'invoke'", "invoke"))
 	i.AddResource(newHelpResource(s, "List Help", "help for 'list'", "list"))
+	i.AddResource(newHelpResource(s, "Describe Help", "help for 'describe'", "describe"))
 	i.AddResource(newHelpResource(s, "Delete Help", "help for delete", "delete"))
 
 	i.AddResource(newHelpResource(s, "Volumes Help", "general help for volumes", "config", "volumes"))
@@ -164,6 +200,10 @@ func New(options ...Option) *Server {
 	i.AddResource(newHelpResource(s, "Repository Rename Help", "help for 'repository rename'", "repository", "rename"))
 	i.AddResource(newHelpResource(s, "Repository Remove Help", "help for 'repository remove'", "repository", "remove"))
 
+	i.AddResource(newHelpResource(s, "Git Help", "general help for Git pipeline config", "config", "git"))
+	i.AddResource(newHelpResource(s, "Git Set Help", "help for 'config git set'", "config", "git", "set"))
+	i.AddResource(newHelpResource(s, "Git Remove Help", "help for 'config git remove'", "config", "git", "remove"))
+
 	s.impl = i
 
 	return s
@@ -172,8 +212,16 @@ func New(options ...Option) *Server {
 // Start the MCP server using the configured transport.
 // The server's readonly mode is determined at construction time via
 // WithReadonly; it cannot be changed after the server is created.
+//
+// When Run returns, on normal shutdown (client disconnect, or the caller
+// canceling ctx in response to SIGINT/SIGTERM), any Function runs left
+// active by the "run" tool are stopped so no subprocess (and the port it
+// holds) is left behind. A hard kill of the server process itself (e.g. a
+// second SIGKILL) bypasses this; the OS reaps the orphaned children instead.
 func (s *Server) Start(ctx context.Context) error {
-	return s.impl.Run(ctx, s.transport)
+	err := s.impl.Run(ctx, s.transport)
+	s.runs.stopAll()
+	return err
 }
 
 // For now the executor is a simple run of the command "func" or "kn func"
@@ -188,6 +236,17 @@ func (e defaultExecutor) Execute(ctx context.Context, subcommand string, args ..
 	cmd := exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
 	// cmd.Dir not set - inherits process working directory which is the current working directory
 	return cmd.CombinedOutput()
+}
+
+func (e defaultExecutor) ExecuteSplit(ctx context.Context, subcommand string, args ...string) (stdout, stderr []byte, err error) {
+	cmdParts := buildArgs(e.s.prefix, subcommand, args)
+	cmd := exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
+	// cmd.Dir not set - inherits process working directory which is the current working directory
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	err = cmd.Run()
+	return outBuf.Bytes(), errBuf.Bytes(), err
 }
 
 // buildArgs constructs the ordered argument list for execution.
