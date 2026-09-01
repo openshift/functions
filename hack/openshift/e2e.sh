@@ -3,7 +3,7 @@
 # Build func from this checkout with the PR-built func-utils image baked
 # in via ldflags, then run e2e on the claimed cluster.
 #
-# Downstream: keda deployer, no Serverless. Three slices:
+# Downstream: keda deployer. Three slices:
 #   --remote: Tekton s2i (sed pack->s2i, same as kn-plugin-func) + PR func-utils
 #   Core Go:  host builder on the farm (oci pusher, no daemon)
 #   Expose:   host builder + --expose=route (from knative/func #3991)

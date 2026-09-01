@@ -34,8 +34,8 @@ wait_for_csv() {
     csv="$(oc get subscription.operators.coreos.com -n "${ns}" "${name}" -o jsonpath='{.status.installedCSV}' 2>/dev/null || true)"
     if [[ -z "${csv}" ]]; then
       echo "Subscription ${name} has no installedCSV yet..."
-      sleep 5
-      elapsed=$((elapsed + 5))
+      sleep 10
+      elapsed=$((elapsed + 10))
     fi
   done
   if [[ -z "${csv}" ]]; then
@@ -49,6 +49,27 @@ wait_for_csv() {
     --timeout="${timeout}s"
 }
 
+# oc wait on a CRD fails immediately if the object does not exist yet.
+# CSV Succeeded can race the operand creating Tekton/KEDA CRDs.
+wait_for_crd() {
+  local crd="$1"
+  local timeout="${2:-300}"
+  local elapsed=0
+
+  echo "Waiting for CRD ${crd}..."
+  while ! oc get crd "${crd}" >/dev/null 2>&1; do
+    if [[ "${elapsed}" -ge "${timeout}" ]]; then
+      echo "timed out waiting for CRD ${crd}" >&2
+      oc get crd || true
+      return 1
+    fi
+    echo "CRD ${crd} not found yet..."
+    sleep 10
+    elapsed=$((elapsed + 10))
+  done
+  oc wait --for=condition=Established "crd/${crd}" --timeout="${timeout}s"
+}
+
 TEST_NAMESPACE="${TEST_NAMESPACE:-func-e2e-$(head -c 128 </dev/urandom | LC_CTYPE=C tr -dc 'a-z0-9' | fold -w 6 | head -n 1)}"
 oc new-project "${TEST_NAMESPACE}" || true
 oc project "${TEST_NAMESPACE}"
@@ -57,17 +78,17 @@ echo "Using namespace ${TEST_NAMESPACE}"
 echo "Installing OpenShift Pipelines"
 oc apply -f "${BASEDIR}/deploy/pipelines-subscription.yaml"
 wait_for_csv openshift-operators openshift-pipelines-operator-rh
-oc wait --for=condition=Established crd/pipelineruns.tekton.dev --timeout=120s
-oc wait --for=condition=Established crd/tasks.tekton.dev --timeout=120s
+wait_for_crd pipelineruns.tekton.dev
+wait_for_crd tasks.tekton.dev
 
 echo "Installing Custom Metrics Autoscaler (KEDA)"
 oc apply -f "${BASEDIR}/deploy/cma-subscription.yaml"
 wait_for_csv openshift-keda openshift-custom-metrics-autoscaler-operator
-oc wait --for=condition=Established crd/kedacontrollers.keda.sh --timeout=120s
+wait_for_crd kedacontrollers.keda.sh
 
 echo "Creating KedaController with HTTP add-on"
 oc apply --server-side --force-conflicts -f "${BASEDIR}/deploy/keda-controller.yaml"
 oc wait deployment --all --timeout=10m --for=condition=Available -n openshift-keda
 
-echo "Cluster prepare complete (Pipelines + CMA, no Serverless)"
+echo "Cluster prepare complete (Pipelines + CMA)"
 echo "TEST_NAMESPACE=${TEST_NAMESPACE}"
