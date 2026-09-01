@@ -31,4 +31,15 @@ COPY LICENSE /licenses/
 
 USER 65532
 
+LABEL name="openshift-serverless-tech-preview/functions-func-rhel9" \
+      com.redhat.component="openshift-serverless-functions-func-container" \
+      version="2.0" \
+      release="1" \
+      summary="OpenShift Serverless Functions func container" \
+      description="Provides the func tool for OpenShift Serverless Functions." \
+      io.k8s.display-name="OpenShift Serverless Functions Func" \
+      io.k8s.description="Provides the func tool for OpenShift Serverless Functions." \
+      io.openshift.tags="openshift,serverless,functions,func" \
+      maintainer="serverless-support@redhat.com"
+
 ENTRYPOINT ["/usr/bin/func"]
