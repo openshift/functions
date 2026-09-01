@@ -15,6 +15,7 @@ metadata:
       || "go.mod".pathChanged()
       || "go.sum".pathChanged()
       || "LICENSE".pathChanged()
+      || "rpms.lock.yaml".pathChanged()
       || ".tekton/functions-utils-push.yaml".pathChanged()
       || ".tekton/functions-utils-pull-request.yaml".pathChanged())
   labels:
