@@ -27,4 +27,15 @@ RUN ln -s /usr/bin/func-util /usr/local/bin/deploy && \
 
 USER 65532
 
+LABEL name="openshift-serverless-tech-preview/functions-utils-rhel9" \
+      com.redhat.component="openshift-serverless-functions-utils-container" \
+      version="2.0" \
+      release="1" \
+      summary="OpenShift Serverless Functions utility container" \
+      description="Provides utility tools (deploy, scaffold, s2i) for OpenShift Serverless Functions." \
+      io.k8s.display-name="OpenShift Serverless Functions Utils" \
+      io.k8s.description="Provides utility tools (deploy, scaffold, s2i) for OpenShift Serverless Functions." \
+      io.openshift.tags="openshift,serverless,functions,utils" \
+      maintainer="serverless-support@redhat.com"
+
 ENTRYPOINT ["/usr/bin/bash"]
