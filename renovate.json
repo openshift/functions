@@ -8,7 +8,7 @@
     "templates/**",
     "third_party/**",
     "Dockerfile.podman-next",
-    "Dockerfile.utils"
+    "+(Dockerfile.utils)"
   ],
   "gomod": {
     "enabled": false
