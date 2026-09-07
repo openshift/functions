@@ -1,0 +1,57 @@
+name: Func Podman Next Test
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Podman Next Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: endersonmenezes/free-disk-space@v3
+        with:
+          remove_android: true
+          remove_dotnet: true
+          remove_haskell: true
+          remove_swap: true
+          rm_cmd: "rmz" # Faster than rm
+      - name: Set Environment Variables
+        run: |
+          echo "KUBECONFIG=${{ github.workspace }}/hack/bin/kubeconfig.yaml" >> "$GITHUB_ENV"
+          echo "PATH=${{ github.workspace }}/hack/bin:$PATH" >> "$GITHUB_ENV"
+          echo "FUNC_ALLOCATE_RETRIES=5" >> "$GITHUB_ENV"
+      - name: Disable CLRF conversion
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - uses: knative/actions/setup-go@main
+      - name: Install Binaries
+        run: ./hack/binaries.sh
+      - name: Allocate Cluster
+        run: ./hack/cluster.sh
+      - name: Local Registry
+        run: ./hack/registry.sh
+      - name: Setup testing images
+        run: ./hack/images.sh
+      - name: Integration Test Podman
+        run: |
+          docker build . -f Dockerfile.podman-next -t podman-next
+          docker run -i --rm --network=host --name podman-next-test --privileged -v /var/tmp -v /var/lib/containers podman-next ./hack/test-integration-podman.sh
+      - name: Dump Cluster Logs
+        if: always()
+        run: ./hack/dump-logs.sh cluster_log.txt
+      - name: Archive Cluster Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cluster-logs-podman-next
+          path: ./cluster_log.txt
+          retention-days: 7
