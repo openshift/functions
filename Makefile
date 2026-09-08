@@ -157,7 +157,7 @@ check-eof: ## Check files end with newlines
 		done | grep . && exit 1 || true
 
 $(BIN_GOLANGCI_LINT):
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b ./bin v2.11.4
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b ./bin -d v2.11.4
 
 $(BIN_MISSPELL):
 	@echo "Installing misspell..."
