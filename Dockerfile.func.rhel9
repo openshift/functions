@@ -40,6 +40,7 @@ LABEL name="openshift-serverless-tech-preview/functions-func-rhel9" \
       io.k8s.display-name="OpenShift Serverless Functions Func" \
       io.k8s.description="Provides the func tool for OpenShift Serverless Functions." \
       io.openshift.tags="openshift,serverless,functions,func" \
-      maintainer="serverless-support@redhat.com"
+      maintainer="serverless-support@redhat.com" \
+      cpe="cpe:/a:redhat:openshift_serverless:2.0::el9"
 
 ENTRYPOINT ["/usr/bin/func"]
