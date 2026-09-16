@@ -36,6 +36,7 @@ LABEL name="openshift-serverless-tech-preview/functions-utils-rhel9" \
       io.k8s.display-name="OpenShift Serverless Functions Utils" \
       io.k8s.description="Provides utility tools (deploy, scaffold, s2i) for OpenShift Serverless Functions." \
       io.openshift.tags="openshift,serverless,functions,utils" \
-      maintainer="serverless-support@redhat.com"
+      maintainer="serverless-support@redhat.com" \
+      cpe="cpe:/a:redhat:openshift_serverless:2.0::el9"
 
 ENTRYPOINT ["/usr/bin/bash"]
