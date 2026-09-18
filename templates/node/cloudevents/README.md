@@ -131,3 +131,39 @@ are run.
 ```console
 npm test
 ```
+
+### Install Private npm Packages
+If you want to install packages from a private npm registry,
+you can do it by mounting an `.npmrc` file with your registry credentials.
+
+This is done by setting the `build.volumes` property in the `func.yaml` config file.
+
+#### pack
+For the `pack` builder, mount your `.npmrc` file into the build workspace:
+```yaml
+# $schema: https://raw.githubusercontent.com/knative/func/refs/heads/main/schema/func_yaml-schema.json
+specVersion: 0.36.0
+name: node-fn
+runtime: node
+created: 2025-03-17T02:02:34.196208671+01:00
+build:
+  volumes:
+    - hostPath: /home/jdoe/.npmrc
+      path: /workspace/.npmrc
+```
+
+#### s2i
+For the `s2i` builder, mount your `.npmrc` file into the source directory:
+```yaml
+# $schema: https://raw.githubusercontent.com/knative/func/refs/heads/main/schema/func_yaml-schema.json
+specVersion: 0.36.0
+name: node-fn
+runtime: node
+created: 2025-03-17T02:02:34.196208671+01:00
+build:
+  volumes:
+    - hostPath: /home/jdoe/.npmrc
+      path: /opt/app-root/src/.npmrc
+```
+
+For more, see [the complete documentation]('https://github.com/knative/func/tree/main/docs')

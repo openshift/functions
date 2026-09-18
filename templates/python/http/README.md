@@ -48,3 +48,45 @@ before deployment. Subsequent deployments will update the existing function.
 
 Our project roadmap can be found: https://github.com/orgs/knative/projects/49
 
+
+### Install Private Python Packages
+If you want to install packages from a private Python package index,
+you can do it by mounting credentials and by setting appropriate environment variable.
+
+This is done by setting the `build.volumes` and `build.buildEnvs` properties in the `func.yaml` config file.
+
+#### pack
+For the `pack` builder, set the private index URL and mount a `pip.conf` file with credentials:
+```yaml
+# $schema: https://raw.githubusercontent.com/knative/func/refs/heads/main/schema/func_yaml-schema.json
+specVersion: 0.36.0
+name: python-fn
+runtime: python
+created: 2025-03-17T02:02:34.196208671+01:00
+build:
+  buildEnvs:
+    - name: PIP_EXTRA_INDEX_URL
+      value: https://pypi.example.com/simple/
+  volumes:
+    - hostPath: /home/jdoe/pip.conf
+      path: /home/cnb/.config/pip/pip.conf
+```
+
+#### s2i
+For the `s2i` builder, set the private index URL and mount a `pip.conf` file with credentials:
+```yaml
+# $schema: https://raw.githubusercontent.com/knative/func/refs/heads/main/schema/func_yaml-schema.json
+specVersion: 0.36.0
+name: python-fn
+runtime: python
+created: 2025-03-17T02:02:34.196208671+01:00
+build:
+  buildEnvs:
+    - name: PIP_EXTRA_INDEX_URL
+      value: https://pypi.example.com/simple/
+  volumes:
+    - hostPath: /home/jdoe/pip.conf
+      path: /opt/app-root/src/.config/pip/pip.conf
+```
+
+For more, see [the complete documentation]('https://github.com/knative/func/tree/main/docs')

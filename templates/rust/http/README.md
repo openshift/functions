@@ -60,3 +60,43 @@ curl $(func info -o url)
 ```
 
 Have fun!
+
+### Use Private Cargo Registries
+If you want to use crates from a private Cargo registry,
+you can do it by mounting Cargo configuration and credentials files.
+
+This is done by setting the `build.volumes` property in the `func.yaml` config file.
+
+#### pack
+For the `pack` builder, mount your Cargo configuration files into the build container:
+```yaml
+# $schema: https://raw.githubusercontent.com/knative/func/refs/heads/main/schema/func_yaml-schema.json
+specVersion: 0.36.0
+name: rust-fn
+runtime: rust
+created: 2025-03-17T02:02:34.196208671+01:00
+build:
+  volumes:
+    - hostPath: /home/jdoe/.cargo/config.toml
+      path: /home/cnb/.cargo/config.toml
+    - hostPath: /home/jdoe/.cargo/credentials.toml
+      path: /home/cnb/.cargo/credentials.toml
+```
+
+#### s2i
+For the `s2i` builder, mount your Cargo configuration files into the source directory:
+```yaml
+# $schema: https://raw.githubusercontent.com/knative/func/refs/heads/main/schema/func_yaml-schema.json
+specVersion: 0.36.0
+name: rust-fn
+runtime: rust
+created: 2025-03-17T02:02:34.196208671+01:00
+build:
+  volumes:
+    - hostPath: /home/jdoe/.cargo/config.toml
+      path: /opt/app-root/src/.cargo/config.toml
+    - hostPath: /home/jdoe/.cargo/credentials.toml
+      path: /opt/app-root/src/.cargo/credentials.toml
+```
+
+For more, see [the complete documentation]('https://github.com/knative/func/tree/main/docs')
