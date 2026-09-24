@@ -91,3 +91,43 @@ http -v ${URL} \
   Ce-Specversion:1.0 \
   message=$(whoami)
 ```
+
+### Use Private Maven Repositories
+If you want to use dependencies from a private Maven repository,
+you can do it by mounting a Maven `settings.xml` file with your repository credentials.
+
+This is done by setting the `build.volumes` and `build.buildEnvs` properties in the `func.yaml` config file.
+
+#### pack
+For the `pack` builder, use [paketo bindings](https://github.com/paketo-buildpacks/maven?tab=readme-ov-file#bindings) to provide Maven settings:
+```yaml
+# $schema: https://raw.githubusercontent.com/knative/func/refs/heads/main/schema/func_yaml-schema.json
+specVersion: 0.36.0
+name: quarkus-fn
+runtime: quarkus
+created: 2025-03-17T02:02:34.196208671+01:00
+build:
+  buildEnvs:
+    - name: SERVICE_BINDING_ROOT
+      value: /bindings
+  volumes:
+    - hostPath: /tmp/maven-settings
+      path: /bindings/maven-settings
+```
+The binding directory (`/tmp/maven-settings`) should contain a `type` file with the value `maven` and your `settings.xml` file.
+
+#### s2i
+For the `s2i` builder, mount your `settings.xml` file directly:
+```yaml
+# $schema: https://raw.githubusercontent.com/knative/func/refs/heads/main/schema/func_yaml-schema.json
+specVersion: 0.36.0
+name: quarkus-fn
+runtime: quarkus
+created: 2025-03-17T02:02:34.196208671+01:00
+build:
+  volumes:
+    - hostPath: /home/jdoe/.m2/settings.xml
+      path: /opt/app-root/src/.m2/settings.xml
+```
+
+For more, see [the complete documentation]('https://github.com/knative/func/tree/main/docs')
