@@ -292,18 +292,20 @@ func TestTriggers_ExplicitlyEmpty(t *testing.T) {
 	}
 }
 
-// TestTriggers_KPAWithoutKEDA documents that a bypass caller setting
-// scale.kpa (incompatible with deployer: keda) without scale.keda must not
-// silently fall back to the default http trigger -- that would treat an
-// invalid config as valid instead of letting Deploy's empty-triggers guard
-// reject it.
+// TestTriggers_KPAWithoutKEDA documents that scale.kpa is deployer: knative
+// config the keda path ignores: with no scale.keda block, a keda function
+// carrying only scale.kpa gets the default http trigger (not an empty list, and
+// never an inferred kafka trigger). This matches IntendedScalerType, so the
+// scaler-switch gate and the deploy agree. The migration that moves legacy flat
+// fields into scale.kpa makes this a real config, and it must deploy.
 func TestTriggers_KPAWithoutKEDA(t *testing.T) {
 	f := fn.Function{
 		Name:  "test",
 		Scale: &fn.ScaleOptions{KPA: &fn.KPAScaleOptions{Metric: strPtr("concurrency")}},
 	}
-	if got := triggers(f); len(got) != 0 {
-		t.Fatalf("expected no triggers for scale.kpa without scale.keda, got %v", got)
+	got := triggers(f)
+	if len(got) != 1 || got[0].Type != "http" {
+		t.Fatalf("expected [http] fallback for scale.kpa without scale.keda, got %v", got)
 	}
 }
 
@@ -881,6 +883,40 @@ func TestBuildScaledObject(t *testing.T) {
 	}
 }
 
+// TestBuildScaledObject_EmptyMechanismEmitsPlaintext covers an omitted SASL
+// mechanism: EffectiveMechanism resolves it to PLAIN, so the ScaledObject must
+// still emit sasl: plaintext. Gating the sasl metadata on a non-empty mechanism
+// would leave KEDA connecting without SASL while the function authenticates, so
+// its lag reads fail and it never scales.
+func TestBuildScaledObject_EmptyMechanismEmitsPlaintext(t *testing.T) {
+	f := fn.Function{
+		Name: "test-func",
+		Run: fn.RunSpec{
+			Kafka: &fn.KafkaConfig{
+				Brokers:          "broker:9093",
+				Topic:            "t",
+				ConsumerGroup:    "g",
+				SecurityProtocol: "SASL_SSL",
+				// Mechanism deliberately omitted: a SASL/PLAIN broker config
+				// that relies on func-go's empty-mechanism default.
+				SASL: &fn.KafkaSASL{User: "admin", Password: "{{ secret:s:k }}"},
+			},
+		},
+	}
+	trigger := fn.KEDATrigger{Type: "kafka"}
+
+	so := buildScaledObject(f, trigger, testDeployment(), "default", 0, 10)
+	if so == nil {
+		t.Fatal("expected ScaledObject, got nil")
+	}
+	spec := so.Object["spec"].(map[string]interface{})
+	trigger0 := spec["triggers"].([]interface{})[0].(map[string]interface{})
+	meta := trigger0["metadata"].(map[string]interface{})
+	if meta["sasl"] != "plaintext" {
+		t.Errorf("sasl = %v, want plaintext for an empty SASL mechanism", meta["sasl"])
+	}
+}
+
 func TestBuildScaledObject_TLSFromSecurityProtocol(t *testing.T) {
 	// SecurityProtocol: SSL with no explicit run.kafka.tls block (relying on
 	// the system's CA trust store) must still enable KEDA's tls handshake --
@@ -1027,7 +1063,10 @@ func TestKedaSASLType(t *testing.T) {
 		"SCRAM-SHA-256": "scram_sha256",
 		"SCRAM-SHA-512": "scram_sha512",
 		"PLAIN":         "plaintext",
-		"UNKNOWN":       "",
+		// Callers pass KafkaSASL.EffectiveMechanism(), which never yields "",
+		// so an empty mechanism is an unmapped input like any other.
+		"":        "",
+		"UNKNOWN": "",
 	}
 	for in, want := range tests {
 		if got := kedaSASLType(in); got != want {
