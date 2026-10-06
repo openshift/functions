@@ -73,15 +73,11 @@ func triggers(f fn.Function) []fn.KEDATrigger {
 	if f.Scale != nil && f.Scale.KEDA != nil {
 		return f.Scale.KEDA.Triggers
 	}
-	if f.Scale != nil && f.Scale.KPA != nil {
-		// scale.kpa is incompatible with deployer: keda (ValidateScale
-		// rejects it), but Deploy is reachable without validation first:
-		// falling back to the default http trigger here would silently
-		// treat this as "no scale.keda configured" instead of surfacing
-		// the mismatch. An empty trigger list makes Deploy's existing
-		// empty-triggers guard reject it instead.
-		return nil
-	}
+	// Anything short of an explicit scale.keda block -- including a scale.kpa
+	// block, which is deployer: knative config the keda path ignores with a
+	// warning -- gets the default http trigger. This matches IntendedScalerType,
+	// which also resolves http for a keda function with only scale.kpa, so the
+	// scaler-switch gate and the deploy agree on the scaler type.
 	return []fn.KEDATrigger{{Type: "http"}}
 }
 
@@ -453,8 +449,23 @@ func buildScaledObject(f fn.Function, trigger fn.KEDATrigger, deployment *v1.Dep
 		}
 	}
 
-	if kafka.SASL != nil && kafka.SASL.Mechanism != "" {
-		triggerMeta["sasl"] = kedaSASLType(kafka.SASL.Mechanism)
+	if kafka.SecurityProtocol == "SASL_PLAINTEXT" || kafka.SecurityProtocol == "SASL_SSL" {
+		// Gate sasl on securityProtocol, mirroring func-go's Kafka runtime,
+		// which enables SASL from KAFKA_SECURITY_PROTOCOL rather than the
+		// presence of a sasl block -- and matching the tls gate above. The
+		// scaler reads the same EffectiveMechanism the function's container is
+		// wired with, so the two authenticate identically; gating on a non-empty
+		// mechanism instead would leave the scaler connecting without SASL while
+		// the function does, failing its lag reads. Validation ties a SASL_*
+		// protocol to a sasl block, but guard the deref for a direct Deploy
+		// caller that bypasses it. kedaSASLType returns "" only for a mechanism
+		// validation already rejects; skip the key in that defensive case rather
+		// than emitting an empty sasl value.
+		if kafka.SASL != nil {
+			if saslType := kedaSASLType(kafka.SASL.EffectiveMechanism()); saslType != "" {
+				triggerMeta["sasl"] = saslType
+			}
+		}
 	}
 
 	triggerSpec := map[string]interface{}{
