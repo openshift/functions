@@ -1,4 +1,4 @@
-ARG GO_BUILDER=registry.ci.openshift.org/openshift/release:rhel-9-release-golang-1.26-openshift-5.0@sha256:af291523cc96647648f3339654a0031bca554dfdf27e01978adc5ac4df62f835
+ARG GO_BUILDER=registry.ci.openshift.org/openshift/release:rhel-9-release-golang-1.26-openshift-5.0@sha256:ec03dbe510b1b54889859aa83e6e7a6cd6a3f2d3ef11f48e9c519e436b23b2c8
 ARG GO_RUNTIME=registry.access.redhat.com/ubi9/ubi-minimal@sha256:8fbe5ca09afa1990e9ff55fd8ee7cb073b823a7640c3c8381ece64f22401d2a2
 
 FROM $GO_BUILDER as builder
