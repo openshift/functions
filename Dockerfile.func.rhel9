@@ -6,7 +6,7 @@ ARG GO_BUILDER=registry.ci.openshift.org/openshift/release:rhel-9-release-golang
 #   Keep the diff hunks clear —
 # Two image bumps can merge the same day.
 #
-ARG GO_RUNTIME=registry.access.redhat.com/ubi9/ubi-minimal@sha256:a21d19f72557aa893a0f6ca1177bb1ffd91df6015e60470a116c50a6a05efcd9
+ARG GO_RUNTIME=registry.access.redhat.com/ubi9/ubi-minimal@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661
 
 # Reference to the func-util image, baked into the func binary at build time
 # so it knows which image to use for in-cluster helper tasks (socat, tar,
