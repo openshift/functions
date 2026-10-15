@@ -1,4 +1,4 @@
-ARG GO_BUILDER=registry.ci.openshift.org/openshift/release:rhel-9-release-golang-1.26-openshift-5.0@sha256:60231dd8b856b97a1fd4ceb33904d3a941a34d322aafb1e79ff444fa90f9081e
+ARG GO_BUILDER=registry.ci.openshift.org/openshift/release:rhel-9-release-golang-1.26-openshift-5.0@sha256:49171a375a029c524f9587d2a6b580e10450c0f5a4ab18f30264b4d0447bf268
 #
 # A merge needs three context lines each way;
 # Too close, and your PRs will start to fray.
