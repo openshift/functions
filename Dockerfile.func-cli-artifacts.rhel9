@@ -1,0 +1,71 @@
+ARG GO_BUILDER=registry.ci.openshift.org/openshift/release:rhel-9-release-golang-1.26-openshift-5.0@sha256:49171a375a029c524f9587d2a6b580e10450c0f5a4ab18f30264b4d0447bf268
+#
+# A merge needs three context lines each way;
+# Too close, and your PRs will start to fray.
+#   So seven lines here
+#   Keep the diff hunks clear —
+# Two image bumps can merge the same day.
+#
+ARG GO_RUNTIME=registry.access.redhat.com/ubi9/ubi-minimal@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661
+#
+# A merge needs three context lines each way;
+# Too close, and your PRs will start to fray.
+#   So seven lines here
+#   Keep the diff hunks clear —
+# Two image bumps can merge the same day.
+#
+ARG FUNC_UTILS_IMG=registry.redhat.io/openshift-serverless-tech-preview/functions-utils-rhel9@sha256:4b1667105be700c2e1a9f52fbefebdcb4277a241d498d2f0a53e9f00128bf2bf
+
+FROM $GO_BUILDER AS builder
+
+ARG FUNC_UTILS_IMG
+ARG VERS=""
+ARG KVER=""
+ARG HASH=""
+
+WORKDIR /workspace
+COPY . .
+
+ENV GOFLAGS=''
+
+# Cross builds use CGO_ENABLED=0, as in the Makefile release targets.
+RUN if [ -f /cachi2/cachi2.env ]; then . /cachi2/cachi2.env; fi && \
+    ./hack/openshift/build.sh --all
+
+RUN dnf install -y tar gzip zip && dnf clean all
+
+# Each archive contains func (func.exe on Windows) and LICENSE. Match the
+# client CLI artifact image's platform directories for console downloads.
+RUN set -eu; \
+    for platform in linux_amd64 linux_arm64 linux_ppc64le linux_s390x darwin_amd64 darwin_arm64; do \
+        download_platform="${platform}"; \
+        case "${platform}" in darwin_*) download_platform="macos_${platform#darwin_}" ;; esac; \
+        archive_platform="${download_platform%_*}-${download_platform##*_}"; \
+        mkdir -p "/artifacts/${download_platform}"; \
+        tar --transform="flags=r;s|func_${platform}|func|" \
+            -zcf "/artifacts/${download_platform}/func-${archive_platform}.tar.gz" \
+            "func_${platform}" LICENSE; \
+    done; \
+    mkdir -p /artifacts/windows /workspace/windows; \
+    cp func_windows_amd64.exe /workspace/windows/func.exe; \
+    cp LICENSE /workspace/windows/; \
+    zip --quiet --junk-path /artifacts/windows/func-windows-amd64.zip /workspace/windows/*
+
+FROM $GO_RUNTIME
+
+COPY --from=builder /artifacts/ /usr/share/func/
+COPY LICENSE /licenses/
+
+USER 65532
+
+LABEL name="openshift-serverless-tech-preview/functions-func-cli-artifacts-rhel9" \
+      com.redhat.component="openshift-serverless-functions-func-cli-artifacts-container" \
+      version="2.0" \
+      release="1" \
+      summary="OpenShift Serverless Functions CLI artifacts" \
+      description="Provides func CLI archives for Linux, macOS and Windows." \
+      io.k8s.display-name="OpenShift Serverless Functions CLI Artifacts" \
+      io.k8s.description="Provides func CLI archives for Linux, macOS and Windows." \
+      io.openshift.tags="openshift,serverless,functions,func,cli-artifacts" \
+      maintainer="serverless-support@redhat.com" \
+      cpe="cpe:/a:redhat:openshift_serverless:2.0::el9"
