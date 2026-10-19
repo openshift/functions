@@ -8,7 +8,7 @@ metadata:
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
     pipelinesascode.tekton.dev/cancel-in-progress: "true"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "main" && ("Dockerfile.func-cli-artifacts.rhel9".pathChanged() || "cmd/func/***".pathChanged() || "pkg/***".pathChanged() || "go.mod".pathChanged() || "go.sum".pathChanged() || "LICENSE".pathChanged() || ".tekton/functions-func-cli-artifacts-push.yaml".pathChanged() || ".tekton/functions-func-cli-artifacts-pull-request.yaml".pathChanged())
+    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "main" && ("Dockerfile.func-cli-artifacts.rhel9".pathChanged() || "cmd/func/***".pathChanged() || "pkg/***".pathChanged() || "go.mod".pathChanged() || "go.sum".pathChanged() || "LICENSE".pathChanged() || "rpms.lock.yaml".pathChanged() || ".tekton/functions-func-cli-artifacts-push.yaml".pathChanged() || ".tekton/functions-func-cli-artifacts-pull-request.yaml".pathChanged())
   labels:
     appstudio.openshift.io/application: serverless-functions-cli
     appstudio.openshift.io/component: functions-func-cli-artifacts
