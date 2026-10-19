@@ -4,8 +4,10 @@ contentOrigin:
 context:
   image: registry.access.redhat.com/ubi9/ubi-minimal
 packages:
+  - gzip
   - socat
   - tar
+  - zip
 arches:
   - x86_64
   - aarch64
