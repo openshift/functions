@@ -22,6 +22,7 @@ usage() {
   echo "Usage: $0 [--all | --platform GOOS GOARCH]"
   echo "Build all release binaries (default), or one supported platform."
   echo "Set VERS, KVER, HASH and FUNC_UTILS_IMG to override build metadata and helper images."
+  echo "Set DEFAULT_GO_BUILDER_IMAGE, DEFAULT_NODE_BUILDER_IMAGE, DEFAULT_PYTHON_BUILDER_IMAGE or DEFAULT_QUARKUS_BUILDER_IMAGE to override S2I builder images."
 }
 
 platforms=(linux/amd64 linux/arm64 linux/ppc64le linux/s390x darwin/amd64 darwin/arm64 windows/amd64)
@@ -64,6 +65,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
 # Match the release metadata and helper image flags in the Makefile. Git
 # metadata is optional when building from a source archive without .git.
+# S2I builder image overrides are passed by the Dockerfile build args.
 vers="${VERS:-$(git describe --tags --match 'v*' 2>/dev/null || true)}"
 kver="${KVER:-$(git describe --tags --match 'knative-*' 2>/dev/null || true)}"
 hash="${HASH:-$(git rev-parse --short HEAD 2>/dev/null || true)}"
@@ -74,6 +76,19 @@ ldflags+=" -X knative.dev/func/pkg/version.Hash=${hash}"
 ldflags+=" -X knative.dev/func/pkg/k8s.SocatImage=${utils_image}"
 ldflags+=" -X knative.dev/func/pkg/k8s.TarImage=${utils_image}"
 ldflags+=" -X knative.dev/func/pkg/pipelines/tekton.FuncUtilImage=${utils_image}"
+
+if [[ -n "${DEFAULT_GO_BUILDER_IMAGE:-}" ]]; then
+  ldflags+=" -X knative.dev/func/pkg/s2i.DefaultGoBuilder=${DEFAULT_GO_BUILDER_IMAGE}"
+fi
+if [[ -n "${DEFAULT_NODE_BUILDER_IMAGE:-}" ]]; then
+  ldflags+=" -X knative.dev/func/pkg/s2i.DefaultNodeBuilder=${DEFAULT_NODE_BUILDER_IMAGE}"
+fi
+if [[ -n "${DEFAULT_PYTHON_BUILDER_IMAGE:-}" ]]; then
+  ldflags+=" -X knative.dev/func/pkg/s2i.DefaultPythonBuilder=${DEFAULT_PYTHON_BUILDER_IMAGE}"
+fi
+if [[ -n "${DEFAULT_QUARKUS_BUILDER_IMAGE:-}" ]]; then
+  ldflags+=" -X knative.dev/func/pkg/s2i.DefaultQuarkusBuilder=${DEFAULT_QUARKUS_BUILDER_IMAGE}"
+fi
 
 for platform in "${platforms[@]}"; do
   os="${platform%/*}"
