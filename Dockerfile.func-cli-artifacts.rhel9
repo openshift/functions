@@ -16,9 +16,18 @@ ARG GO_RUNTIME=registry.access.redhat.com/ubi9/ubi-minimal@sha256:c4c285d42941eb
 #
 ARG FUNC_UTILS_IMG=registry.redhat.io/openshift-serverless-tech-preview/functions-utils-rhel9@sha256:2f5df53125a1c9baaefa9363b753a40e0a572669eda1d088c5da5e03da4de934
 
+ARG DEFAULT_GO_BUILDER_IMAGE=registry.access.redhat.com/ubi8/go-toolset
+ARG DEFAULT_NODE_BUILDER_IMAGE=registry.access.redhat.com/ubi8/nodejs-20-minimal
+ARG DEFAULT_PYTHON_BUILDER_IMAGE=registry.access.redhat.com/ubi8/python-311
+ARG DEFAULT_QUARKUS_BUILDER_IMAGE=registry.access.redhat.com/ubi8/openjdk-21
+
 FROM $GO_BUILDER AS builder
 
 ARG FUNC_UTILS_IMG
+ARG DEFAULT_GO_BUILDER_IMAGE
+ARG DEFAULT_NODE_BUILDER_IMAGE
+ARG DEFAULT_PYTHON_BUILDER_IMAGE
+ARG DEFAULT_QUARKUS_BUILDER_IMAGE
 ARG VERS=""
 ARG KVER=""
 ARG HASH=""
