@@ -6,7 +6,7 @@ ARG GO_BUILDER=registry.ci.openshift.org/openshift/release:rhel-9-release-golang
 #   Keep the diff hunks clear —
 # Two image bumps can merge the same day.
 #
-ARG GO_RUNTIME=registry.access.redhat.com/ubi9/ubi-minimal@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661
+ARG GO_RUNTIME=registry.access.redhat.com/ubi9/ubi-minimal@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed
 #
 # A merge needs three context lines each way;
 # Too close, and your PRs will start to fray.
