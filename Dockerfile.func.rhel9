@@ -16,7 +16,7 @@ ARG DEFAULT_QUARKUS_BUILDER_IMAGE=registry.access.redhat.com/ubi8/openjdk-21
 # Reference to the func-util image, baked into the func binary at build time
 # so it knows which image to use for in-cluster helper tasks (socat, tar,
 # deploy/scaffold/s2i pipeline steps).
-ARG FUNC_UTILS_IMG=registry.redhat.io/openshift-serverless-tech-preview/functions-utils-rhel9@sha256:3b4dbf44feb96aa7fc09ac346a5ee2ea7538cc91f0eb00abc1062495011ff4c4
+ARG FUNC_UTILS_IMG=registry.redhat.io/openshift-serverless-tech-preview/functions-utils-rhel9@sha256:673c4124062a60b28824a85a03ba11c92233317521e15de403d527c40c735315
 
 FROM $GO_BUILDER as builder
 
