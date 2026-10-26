@@ -16,8 +16,10 @@
   "packageRules": [
     {
       "matchDatasources": ["docker"],
-      "matchPackagePatterns": ["^registry\\.ci\\.openshift\\.org/"],
-      "enabled": false
+      "enabled": false,
+      "matchPackageNames": [
+        "/^registry\\.ci\\.openshift\\.org//"
+      ]
     }
   ]
 }
