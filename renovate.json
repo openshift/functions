@@ -12,5 +12,12 @@
   ],
   "gomod": {
     "enabled": false
-  }
+  },
+  "packageRules": [
+    {
+      "matchDatasources": ["docker"],
+      "matchPackagePatterns": ["^registry\\.ci\\.openshift\\.org/"],
+      "enabled": false
+    }
+  ]
 }
