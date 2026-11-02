@@ -12,6 +12,7 @@ ARG DEFAULT_GO_BUILDER_IMAGE=registry.access.redhat.com/ubi8/go-toolset
 ARG DEFAULT_NODE_BUILDER_IMAGE=registry.access.redhat.com/ubi8/nodejs-20-minimal
 ARG DEFAULT_PYTHON_BUILDER_IMAGE=registry.access.redhat.com/ubi8/python-311
 ARG DEFAULT_QUARKUS_BUILDER_IMAGE=registry.access.redhat.com/ubi8/openjdk-21
+ARG DEFAULT_KAFKA_RUNTIME_IMAGE=registry.redhat.io/openshift-serverless-tech-preview/functions-adapter-kafka-rhel9@sha256:ea44b09e1db630e096134654b2eda8467276abca0a0e56f814676ea9f8f6fc1a
 
 # Reference to the func-util image, baked into the func binary at build time
 # so it knows which image to use for in-cluster helper tasks (socat, tar,
@@ -25,6 +26,7 @@ ARG DEFAULT_GO_BUILDER_IMAGE
 ARG DEFAULT_NODE_BUILDER_IMAGE
 ARG DEFAULT_PYTHON_BUILDER_IMAGE
 ARG DEFAULT_QUARKUS_BUILDER_IMAGE
+ARG DEFAULT_KAFKA_RUNTIME_IMAGE
 
 WORKDIR /workspace
 COPY . .
@@ -41,7 +43,8 @@ RUN if [ -f /cachi2/cachi2.env ]; then source /cachi2/cachi2.env; fi && \
 	-X knative.dev/func/pkg/s2i.DefaultGoBuilder=$DEFAULT_GO_BUILDER_IMAGE \
 	-X knative.dev/func/pkg/s2i.DefaultNodeBuilder=$DEFAULT_NODE_BUILDER_IMAGE \
 	-X knative.dev/func/pkg/s2i.DefaultPythonBuilder=$DEFAULT_PYTHON_BUILDER_IMAGE \
-	-X knative.dev/func/pkg/s2i.DefaultQuarkusBuilder=$DEFAULT_QUARKUS_BUILDER_IMAGE" \
+	-X knative.dev/func/pkg/s2i.DefaultQuarkusBuilder=$DEFAULT_QUARKUS_BUILDER_IMAGE \
+	-X knative.dev/func/pkg/k8s.DefaultKafkaRuntimeImage=$DEFAULT_KAFKA_RUNTIME_IMAGE" \
 	-o /usr/bin/func ./cmd/func
 
 FROM $GO_RUNTIME
