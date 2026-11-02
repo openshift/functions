@@ -41,7 +41,8 @@ func TestBuild(t *testing.T) {
 			cmd := exec.Command("bash", append([]string{script}, tt.args...)...)
 			cmd.Dir = dir // The script must work from outside the checkout.
 			cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
-				"BUILD_LOG="+log, "VERS=test-version", "KVER=test-knative", "HASH=test-hash", "FUNC_UTILS_IMG=example.com/utils:test")
+				"BUILD_LOG="+log, "VERS=test-version", "KVER=test-knative", "HASH=test-hash", "FUNC_UTILS_IMG=example.com/utils:test",
+				"DEFAULT_KAFKA_RUNTIME_IMAGE=example.com/kafka-runtime:test")
 			output, err := cmd.CombinedOutput()
 			if (err != nil) != tt.wantError {
 				t.Fatalf("build error = %v, wantError = %v; output: %s", err, tt.wantError, output)
@@ -61,7 +62,8 @@ func TestBuild(t *testing.T) {
 				" -X knative.dev/func/pkg/version.Kver=test-knative -X knative.dev/func/pkg/version.Hash=test-hash" +
 				" -X knative.dev/func/pkg/k8s.SocatImage=example.com/utils:test" +
 				" -X knative.dev/func/pkg/k8s.TarImage=example.com/utils:test" +
-				" -X knative.dev/func/pkg/pipelines/tekton.FuncUtilImage=example.com/utils:test"
+				" -X knative.dev/func/pkg/pipelines/tekton.FuncUtilImage=example.com/utils:test" +
+				" -X knative.dev/func/pkg/k8s.DefaultKafkaRuntimeImage=example.com/kafka-runtime:test"
 			var want strings.Builder
 			for _, platform := range tt.platforms {
 				binary := "func_" + strings.ReplaceAll(platform, "/", "_")
