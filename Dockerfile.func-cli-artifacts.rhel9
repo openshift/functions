@@ -20,6 +20,7 @@ ARG DEFAULT_GO_BUILDER_IMAGE=registry.access.redhat.com/ubi8/go-toolset
 ARG DEFAULT_NODE_BUILDER_IMAGE=registry.access.redhat.com/ubi8/nodejs-20-minimal
 ARG DEFAULT_PYTHON_BUILDER_IMAGE=registry.access.redhat.com/ubi8/python-311
 ARG DEFAULT_QUARKUS_BUILDER_IMAGE=registry.access.redhat.com/ubi8/openjdk-21
+ARG DEFAULT_KAFKA_RUNTIME_IMAGE=registry.redhat.io/openshift-serverless-tech-preview/functions-adapter-kafka-rhel9@sha256:ea44b09e1db630e096134654b2eda8467276abca0a0e56f814676ea9f8f6fc1a
 
 FROM $GO_BUILDER AS builder
 
@@ -28,6 +29,7 @@ ARG DEFAULT_GO_BUILDER_IMAGE
 ARG DEFAULT_NODE_BUILDER_IMAGE
 ARG DEFAULT_PYTHON_BUILDER_IMAGE
 ARG DEFAULT_QUARKUS_BUILDER_IMAGE
+ARG DEFAULT_KAFKA_RUNTIME_IMAGE
 ARG VERS=""
 ARG KVER=""
 ARG HASH=""

@@ -23,6 +23,7 @@ usage() {
   echo "Build all release binaries (default), or one supported platform."
   echo "Set VERS, KVER, HASH and FUNC_UTILS_IMG to override build metadata and helper images."
   echo "Set DEFAULT_GO_BUILDER_IMAGE, DEFAULT_NODE_BUILDER_IMAGE, DEFAULT_PYTHON_BUILDER_IMAGE or DEFAULT_QUARKUS_BUILDER_IMAGE to override S2I builder images."
+  echo "Set DEFAULT_KAFKA_RUNTIME_IMAGE to override the default Kafka runtime image."
 }
 
 platforms=(linux/amd64 linux/arm64 linux/ppc64le linux/s390x darwin/amd64 darwin/arm64 windows/amd64)
@@ -88,6 +89,9 @@ if [[ -n "${DEFAULT_PYTHON_BUILDER_IMAGE:-}" ]]; then
 fi
 if [[ -n "${DEFAULT_QUARKUS_BUILDER_IMAGE:-}" ]]; then
   ldflags+=" -X knative.dev/func/pkg/s2i.DefaultQuarkusBuilder=${DEFAULT_QUARKUS_BUILDER_IMAGE}"
+fi
+if [[ -n "${DEFAULT_KAFKA_RUNTIME_IMAGE:-}" ]]; then
+  ldflags+=" -X knative.dev/func/pkg/k8s.DefaultKafkaRuntimeImage=${DEFAULT_KAFKA_RUNTIME_IMAGE}"
 fi
 
 for platform in "${platforms[@]}"; do
