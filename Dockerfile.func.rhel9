@@ -12,7 +12,7 @@ ARG DEFAULT_GO_BUILDER_IMAGE=registry.access.redhat.com/ubi8/go-toolset
 ARG DEFAULT_NODE_BUILDER_IMAGE=registry.access.redhat.com/ubi8/nodejs-20-minimal
 ARG DEFAULT_PYTHON_BUILDER_IMAGE=registry.access.redhat.com/ubi8/python-311
 ARG DEFAULT_QUARKUS_BUILDER_IMAGE=registry.access.redhat.com/ubi8/openjdk-21
-ARG DEFAULT_KAFKA_RUNTIME_IMAGE=registry.redhat.io/openshift-serverless-tech-preview/functions-adapter-kafka-rhel9@sha256:d205ab7ee254e7c5a8acd4eca4c9c806f7498b927f06ec78d889b7bb8a5c9b30
+ARG DEFAULT_KAFKA_RUNTIME_IMAGE=registry.redhat.io/openshift-serverless-tech-preview/functions-adapter-kafka-rhel9@sha256:94d784fea8a496108e7ebc65a9180b4de332e1ca1e5a7a3eb7502752ae001d41
 
 # Reference to the func-util image, baked into the func binary at build time
 # so it knows which image to use for in-cluster helper tasks (socat, tar,
