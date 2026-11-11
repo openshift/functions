@@ -17,7 +17,7 @@ ARG DEFAULT_KAFKA_RUNTIME_IMAGE=registry.redhat.io/openshift-serverless-tech-pre
 # Reference to the func-util image, baked into the func binary at build time
 # so it knows which image to use for in-cluster helper tasks (socat, tar,
 # deploy/scaffold/s2i pipeline steps).
-ARG FUNC_UTILS_IMG=registry.redhat.io/openshift-serverless-tech-preview/functions-utils-rhel9@sha256:7e973640e3dc6445fb9389d88a1bc742f37c96baa6bea998706e78e7baeb49b3
+ARG FUNC_UTILS_IMG=registry.redhat.io/openshift-serverless-tech-preview/functions-utils-rhel9@sha256:3469851def457cf852d0d9c64b6d6b04f6a7db77358d6eaed0f1faec74c67d3e
 
 FROM $GO_BUILDER as builder
 
