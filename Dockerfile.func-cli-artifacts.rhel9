@@ -39,8 +39,12 @@ COPY . .
 ENV GOFLAGS=''
 
 # Cross builds use CGO_ENABLED=0, as in the Makefile release targets.
+# KVER, the Knative release train (knative-v1.N), is derived from the
+# knative.dev/serving dependency in go.mod, using the knative-v1.N <-> v0.(N+27)
+# convention, unless explicitly overridden via the KVER build arg.
 RUN if [ -f /cachi2/cachi2.env ]; then . /cachi2/cachi2.env; fi && \
-    ./hack/openshift/build.sh --all
+    kver="${KVER:-$(awk '$1=="knative.dev/serving" && $2 ~ /^v0\./ {split($2,a,"."); print "knative-v1." (a[2]-27); exit}' go.mod)}" && \
+    KVER="${kver}" ./hack/openshift/build.sh --all
 
 FROM $GO_RUNTIME AS packager
 
