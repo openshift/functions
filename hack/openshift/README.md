@@ -50,6 +50,17 @@ on exit, so do not edit `e2e/e2e_*.go` during a run). Arguments go to
 The run leaves the namespace behind for debugging; remove it with
 `oc delete project <namespace>`.
 
+### func-utils image
+
+`func` runs the func-utils image on the cluster (dialer pod, pipeline steps).
+Its reference is fixed at build time (`FUNC_UTILS_IMG` ldflags). The
+upstream default deploys a function whose `func.yaml` names no deployer with
+knative, which this cluster lacks; the git-sourced remote tests hit that. So
+`e2e.sh` bakes in the downstream image that `Dockerfile.func.rhel9` pins (the
+Konflux build, public on quay.io), whose default is raw. Prow sets
+`FUNC_UTILS_IMG` to the image built from the PR. To test local func-util
+changes, build and push your own image and set `FUNC_UTILS_IMG`.
+
 ### Test map
 
 What each part of the suite needs on the cluster:
