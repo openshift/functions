@@ -1,100 +1,52 @@
 #!/usr/bin/env bash
 #
-# Build func from this checkout with the PR-built func-utils image baked
-# in via ldflags, then run e2e on the claimed cluster.
+# Build func from this checkout and run the e2e suite on an OpenShift cluster
+# with no Knative (raw deployer). Run cluster-prepare.sh first. See README.md.
 #
-# Downstream: keda deployer. Three slices:
-#   --remote: Tekton s2i (sed pack->s2i, same as kn-plugin-func) + PR func-utils
-#   Core Go:  host builder on the farm (oci pusher, no daemon)
-#   Expose:   host builder + --expose=route (from knative/func #3991)
+# Environment (all optional):
+#   FUNC_UTILS_IMG  func-utils image baked into func (default: the compiled-in
+#                   upstream image; Prow passes the PR's)
+#   KUBECONFIG      default ~/.kube/config
+#   NAMESPACE       default: the current oc project
+#   REGISTRY        default: a random ttl.sh namespace (anonymous, 24h)
 #
-# Required:
-#   FUNC_UTILS_IMG  - ci-operator pipeline pullspec for func-util
-#   KUBECONFIG      - claimed cluster (Prow cluster_claim)
-#
+# Arguments go to go test and override the defaults below:
+#   ./e2e.sh -run TestCore_Deploy_Basic
+#   ./e2e.sh -skip '^$'       # also run the tests skipped by default
+#   ./e2e.sh -timeout 30m
 
-set -o errexit
-set -o nounset
-set -o pipefail
+set -o errexit -o nounset -o pipefail
+cd "$(dirname "$0")/../.."
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-cd "${ROOT}"
-
-if [[ -z "${FUNC_UTILS_IMG:-}" ]]; then
-  echo "FUNC_UTILS_IMG must be set (ci-operator image dependency)" >&2
-  exit 1
-fi
-if [[ -z "${KUBECONFIG:-}" ]]; then
-  echo "KUBECONFIG must be set" >&2
-  exit 1
-fi
-if ! command -v oc >/dev/null 2>&1; then
-  echo "oc is required on PATH" >&2
-  exit 1
-fi
-
-echo "=== func-utils image ==="
-echo "FUNC_UTILS_IMG=${FUNC_UTILS_IMG}"
-
-# Tests call kubectl. Prow injects oc via cli: latest.
-mkdir -p /tmp/bin
-ln -sf "$(command -v oc)" /tmp/bin/kubectl
-export PATH="/tmp/bin:${PATH}"
-
-export GOPATH="${GOPATH:-/tmp/go}"
-export GOCACHE="${GOCACHE:-/tmp/gocache}"
-mkdir -p "${GOPATH}" "${GOCACHE}"
-
-# The golang build-root often sets GOFLAGS=-mod=vendor. Makefile assigns
-# GOFLAGS with FUNC_UTILS_IMG ldflags, but an environment GOFLAGS wins
-# over that assignment. Clear it so make build bakes the PR image.
-unset GOFLAGS
-
-echo "=== building func binary ==="
-make build FUNC_UTILS_IMG="${FUNC_UTILS_IMG}"
-
-NS="$(oc project -q)"
-DOMAIN="$(oc get ingresses.config cluster -o jsonpath='{.spec.domain}')"
-REG="${FUNC_E2E_REGISTRY:-ttl.sh/funce2e$(head -c 128 </dev/urandom | LC_CTYPE=C tr -dc 'a-z0-9' | head -c 6)}"
-
-export FUNC_E2E_BIN="${ROOT}/func"
+export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 export FUNC_E2E_KUBECONFIG="${KUBECONFIG}"
-export FUNC_E2E_NAMESPACE="${NS}"
-export FUNC_E2E_DOMAIN="${DOMAIN}"
-export FUNC_E2E_REGISTRY="${REG}"
+export FUNC_E2E_NAMESPACE="${NAMESPACE:-$(oc project -q)}"
+export FUNC_E2E_REGISTRY="${REGISTRY:-ttl.sh/funce2e$(printf '%04x%04x' "${RANDOM}" "${RANDOM}")}"
+export FUNC_E2E_BIN="${PWD}/func"
 export FUNC_E2E_VERBOSE="${FUNC_E2E_VERBOSE:-true}"
-export FUNC_E2E_DEPLOYER="${FUNC_E2E_DEPLOYER:-keda}"
-export FUNC_E2E_ROUTE="${FUNC_E2E_ROUTE:-true}"
 
-echo "=== e2e env ==="
-echo "FUNC_E2E_BIN=${FUNC_E2E_BIN}"
-echo "FUNC_E2E_NAMESPACE=${FUNC_E2E_NAMESPACE}"
-echo "FUNC_E2E_DOMAIN=${FUNC_E2E_DOMAIN}"
-echo "FUNC_E2E_REGISTRY=${FUNC_E2E_REGISTRY}"
-echo "FUNC_E2E_KUBECONFIG=${FUNC_E2E_KUBECONFIG}"
-echo "FUNC_E2E_DEPLOYER=${FUNC_E2E_DEPLOYER}"
-echo "FUNC_E2E_ROUTE=${FUNC_E2E_ROUTE}"
+# The Prow build root sets GOFLAGS=-mod=vendor; this repo has no vendor dir,
+# so the go test below would fail.
+unset GOFLAGS
+make build FUNC_UTILS_IMG="${FUNC_UTILS_IMG:-}"
 
-echo "=== remote s2i e2e ==="
-sed -i 's|"--builder", "pack"|"--builder", "s2i"|' ./e2e/e2e_*.go
-sed -i 's|--builder=pack|--builder=s2i|' ./e2e/e2e_*.go
-# -skip TestRemote_Deploy_InClusterRegistry: Kind registry hostname.
-go test -tags e2e -timeout 90m -count=1 -v \
-  -run 'TestRemote_' \
-  -skip 'TestRemote_Deploy_InClusterRegistry' \
-  ./e2e
+# Tests log cluster CPU through kubectl (best effort); oc serves as one.
+if ! command -v kubectl >/dev/null; then
+  mkdir -p /tmp/bin
+  ln -sf "$(command -v oc)" /tmp/bin/kubectl
+  export PATH="/tmp/bin:${PATH}"
+fi
 
-echo "=== host builder Go core e2e ==="
-# Skip TestCore_CredentialsDockerPusher: pack/s2i use the docker pusher, farm has no daemon.
-go test -tags e2e -timeout 90m -count=1 -v \
-  -run 'TestCore_' \
-  -skip 'TestCore_CredentialsDockerPusher' \
-  ./e2e
+# The tests hardcode the pack builder; downstream ships s2i. Swap it for this
+# run only. Restore from a copy: e2e_podman_test.go has a real --builder=s2i,
+# so a reverse sed would break it.
+backup="$(mktemp -d)"
+cp e2e/e2e_*.go "${backup}/"
+trap 'cp "${backup}"/*.go e2e/ && rm -rf "${backup}"' EXIT
+sed -i -e 's|"--builder", "pack"|"--builder", "s2i"|' -e 's|--builder=pack|--builder=s2i|' e2e/e2e_*.go
 
-echo "=== expose e2e ==="
-# RouteAllBuilders: pack/s2i need a local daemon.
-# RouteRequiresOpenShift / RemoteRouteRequiresOpenShift skip themselves (Kind-only).
-go test -tags e2e -timeout 90m -count=1 -v \
-  -run 'TestExpose_' \
-  -skip 'TestExpose_RouteAllBuilders' \
-  ./e2e
+# Skipped: tests needing a Knative Eventing broker, the Kind in-cluster
+# registry, or a local container daemon. See the test map in README.md.
+go test -tags e2e -count=1 -v -timeout 120m \
+  -skip 'TestMetadata_Subscriptions|TestMetadata_TriggerSync|TestRemote_Deploy_InClusterRegistry|TestCore_CredentialsDockerPusher|TestExpose_RouteAllBuilders' \
+  ./e2e "$@"
