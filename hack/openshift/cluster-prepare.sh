@@ -1,94 +1,46 @@
 #!/usr/bin/env bash
 #
-# Prepare a claimed OCP cluster for func remote e2e.
-# Downstream path: OpenShift Pipelines + CMA (KEDA HTTP add-on).
+# Prepare an OpenShift cluster for e2e.sh: install OpenShift Pipelines and the
+# Custom Metrics Autoscaler (KEDA with the HTTP add-on) on the cluster of the
+# current oc context, then create and switch to a fresh test namespace.
+# Safe to re-run. See README.md.
 #
 # Must not source hack/common.sh: that script overwrites KUBECONFIG.
-#
 
-set -o errexit
-set -o nounset
-set -o pipefail
+set -o errexit -o nounset -o pipefail
+cd "$(dirname "$0")/deploy"
 
-BASEDIR="$(cd "$(dirname "$0")" && pwd)"
-
-if ! command -v oc >/dev/null 2>&1; then
-  echo "oc is required on PATH (Prow injects it via cli: latest)" >&2
-  exit 1
-fi
-
-if [[ -z "${KUBECONFIG:-}" ]]; then
-  echo "KUBECONFIG must be set" >&2
-  exit 1
-fi
-
-wait_for_csv() {
-  local ns="$1"
-  local name="$2"
-  local timeout="${3:-600}"
-  local elapsed=0
-  local csv=""
-
-  echo "Waiting for subscription ${name} CSV in ${ns}..."
-  while [[ -z "${csv}" && "${elapsed}" -lt "${timeout}" ]]; do
-    csv="$(oc get subscription.operators.coreos.com -n "${ns}" "${name}" -o jsonpath='{.status.installedCSV}' 2>/dev/null || true)"
-    if [[ -z "${csv}" ]]; then
-      echo "Subscription ${name} has no installedCSV yet..."
-      sleep 10
-      elapsed=$((elapsed + 10))
-    fi
-  done
-  if [[ -z "${csv}" ]]; then
-    echo "timed out waiting for subscription ${name} in ${ns}" >&2
-    oc get subscription.operators.coreos.com,csv -n "${ns}" || true
-    return 1
-  fi
-  echo "Waiting for CSV ${csv} in ${ns}"
-  oc wait csv -n "${ns}" "${csv}" \
-    --for=jsonpath='{.status.phase}'=Succeeded \
-    --timeout="${timeout}s"
-}
-
-# oc wait on a CRD fails immediately if the object does not exist yet.
-# CSV Succeeded can race the operand creating Tekton/KEDA CRDs.
-wait_for_crd() {
-  local crd="$1"
-  local timeout="${2:-300}"
-  local elapsed=0
-
-  echo "Waiting for CRD ${crd}..."
-  while ! oc get crd "${crd}" >/dev/null 2>&1; do
-    if [[ "${elapsed}" -ge "${timeout}" ]]; then
-      echo "timed out waiting for CRD ${crd}" >&2
-      oc get crd || true
-      return 1
-    fi
-    echo "CRD ${crd} not found yet..."
+# Run a command until it succeeds. A freshly installed operator serves its
+# CRDs and resources late. Tries are quiet; the last one shows its error.
+retry() {
+  for _ in $(seq 30); do
+    "$@" >/dev/null 2>&1 && return
     sleep 10
-    elapsed=$((elapsed + 10))
   done
-  oc wait --for=condition=Established "crd/${crd}" --timeout="${timeout}s"
+  "$@"
 }
 
-TEST_NAMESPACE="${TEST_NAMESPACE:-func-e2e-$(head -c 128 </dev/urandom | LC_CTYPE=C tr -dc 'a-z0-9' | fold -w 6 | head -n 1)}"
-oc new-project "${TEST_NAMESPACE}" || true
-oc project "${TEST_NAMESPACE}"
-echo "Using namespace ${TEST_NAMESPACE}"
+oc apply -f pipelines-subscription.yaml -f cma-subscription.yaml
 
-echo "Installing OpenShift Pipelines"
-oc apply -f "${BASEDIR}/deploy/pipelines-subscription.yaml"
-wait_for_csv openshift-operators openshift-pipelines-operator-rh
-wait_for_crd pipelineruns.tekton.dev
-wait_for_crd tasks.tekton.dev
+# Ready implies the CSV, the controller and the webhook are up. The CSV can
+# succeed before the CRDs exist (openshift/functions#61), so wait on them too.
+retry oc wait tektonpipeline/pipeline --for=condition=Ready --timeout=30s
+retry oc wait crd/pipelineruns.tekton.dev crd/tasks.tekton.dev \
+  --for=condition=Established --timeout=30s
 
-echo "Installing Custom Metrics Autoscaler (KEDA)"
-oc apply -f "${BASEDIR}/deploy/cma-subscription.yaml"
-wait_for_csv openshift-keda openshift-custom-metrics-autoscaler-operator
-wait_for_crd kedacontrollers.keda.sh
+# Tekton Results' TaskRun finalizer races namespace deletion and hangs suite
+# cleanup. The field is "result", singular; "results" is ignored.
+oc patch tektonconfig config --type=merge -p '{"spec":{"result":{"disabled":true}}}'
 
-echo "Creating KedaController with HTTP add-on"
-oc apply --server-side --force-conflicts -f "${BASEDIR}/deploy/keda-controller.yaml"
-oc wait deployment --all --timeout=10m --for=condition=Available -n openshift-keda
+# The apply fails until the KedaController CRD exists. The operator's own
+# deployment is in openshift-keda too, so wait on each operand by name:
+# "oc wait deployment --all" can pass before they are created.
+retry oc apply --server-side --force-conflicts -f keda-controller.yaml
+for d in keda-operator keda-metrics-apiserver keda-admission \
+  keda-add-ons-http-operator keda-add-ons-http-interceptor keda-add-ons-http-scaler; do
+  retry oc wait -n openshift-keda "deployment/${d}" --for=condition=Available --timeout=30s
+done
 
-echo "Cluster prepare complete (Pipelines + CMA)"
-echo "TEST_NAMESPACE=${TEST_NAMESPACE}"
+ns="${TEST_NAMESPACE:-func-e2e-$(printf '%04x%04x' "${RANDOM}" "${RANDOM}")}"
+oc new-project "${ns}" >/dev/null 2>&1 || oc project "${ns}"
+echo "Cluster ready. Current project: ${ns}"
