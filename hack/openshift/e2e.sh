@@ -4,6 +4,7 @@
 # with no Knative (raw deployer). Run cluster-prepare.sh first. See README.md.
 #
 # Environment (all optional):
+#   FUNC_BIN        prebuilt func binary to run instead of make build
 #   FUNC_UTILS_IMG  func-utils image baked into func (default: the downstream
 #                   image pinned in Dockerfile.func.rhel9; Prow passes the PR's)
 #   KUBECONFIG      default ~/.kube/config
@@ -27,13 +28,16 @@ export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 export FUNC_E2E_KUBECONFIG="${KUBECONFIG}"
 export FUNC_E2E_NAMESPACE="${NAMESPACE:-$(oc project -q)}"
 export FUNC_E2E_REGISTRY="${REGISTRY:-ttl.sh/funce2e$(printf '%04x%04x' "${RANDOM}" "${RANDOM}")}"
-export FUNC_E2E_BIN="${PWD}/func"
 export FUNC_E2E_VERBOSE="${FUNC_E2E_VERBOSE:-true}"
 
 # The Prow build root sets GOFLAGS=-mod=vendor; this repo has no vendor dir,
 # so the go test below would fail.
 unset GOFLAGS
-make build FUNC_UTILS_IMG="${FUNC_UTILS_IMG}"
+if [[ -z "${FUNC_BIN:-}" ]]; then
+  make build FUNC_UTILS_IMG="${FUNC_UTILS_IMG}"
+  FUNC_BIN="${PWD}/func"
+fi
+export FUNC_E2E_BIN="${FUNC_BIN}"
 
 # Tests log cluster CPU through kubectl (best effort); oc serves as one.
 if ! command -v kubectl >/dev/null; then
