@@ -61,6 +61,14 @@ Konflux build, public on quay.io), whose default is raw. Prow sets
 `FUNC_UTILS_IMG` to the image built from the PR. To test local func-util
 changes, build and push your own image and set `FUNC_UTILS_IMG`.
 
+### Release verification (shipped artifacts)
+
+`FUNC_BIN` runs the suite with a prebuilt func binary instead of building
+from the checkout - e.g. one extracted from a shipped image with
+`oc image extract --path /usr/bin/func:<dir> <image-ref>`. The binary's baked
+func-utils ref points at registry.redhat.io, so the cluster's global pull
+secret needs an entry there.
+
 ### Test map
 
 What each part of the suite needs on the cluster:
