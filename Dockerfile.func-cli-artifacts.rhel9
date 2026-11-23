@@ -14,7 +14,7 @@ ARG GO_RUNTIME=registry.access.redhat.com/ubi9/ubi-minimal@sha256:08d4c70f1baf65
 #   Keep the diff hunks clear —
 # Two image bumps can merge the same day.
 #
-ARG FUNC_UTILS_IMG=registry.redhat.io/openshift-serverless-tech-preview/functions-utils-rhel9@sha256:4aa61164ef5b12264981923c6186689fffdba0c95942f45cc6f204c9e0d11b50
+ARG FUNC_UTILS_IMG=registry.redhat.io/openshift-serverless-tech-preview/functions-utils-rhel9@sha256:6384f83102306b4a43aac3b9684e32e76b8efc579e4750c2656ddd1f25e03cc1
 
 ARG DEFAULT_GO_BUILDER_IMAGE=registry.access.redhat.com/ubi9/go-toolset
 ARG DEFAULT_NODE_BUILDER_IMAGE=registry.access.redhat.com/ubi9/nodejs-22-minimal
