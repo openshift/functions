@@ -65,16 +65,21 @@ COPY --from=builder /workspace/LICENSE ./LICENSE
 # Each archive contains func (func.exe on Windows) and LICENSE. Match the
 # client CLI artifact image's platform directories for console downloads.
 RUN set -eu; \
-    for platform in linux_amd64 linux_arm64 linux_ppc64le linux_s390x darwin_amd64 darwin_arm64; do \
+    for platform in linux_amd64 linux_arm64 linux_ppc64le linux_s390x darwin_amd64 darwin_arm64 windows_amd64; do \
         download_platform="${platform}"; \
-        case "${platform}" in darwin_*) download_platform="macos_${platform#darwin_}" ;; esac; \
-        archive_platform="${download_platform%_*}-${download_platform##*_}"; \
+        archive_platform="${platform%_*}-${platform##*_}"; \
+        case "${platform}" in \
+            darwin_*) download_platform="macos_${platform#darwin_}"; archive_platform="macos-${platform#darwin_}" ;; \
+            windows_*) download_platform="windows" ;; \
+        esac; \
+        bin="func_${platform}"; bin_name="func"; \
+        case "${platform}" in windows_*) bin="func_${platform}.exe"; bin_name="func.exe" ;; esac; \
         mkdir -p "/artifacts/${download_platform}"; \
-        tar --transform="flags=r;s|func_${platform}|func|" \
+        tar --transform="flags=r;s|${bin}|${bin_name}|" \
             -zcf "/artifacts/${download_platform}/func-${archive_platform}.tar.gz" \
-            "func_${platform}" LICENSE; \
+            "${bin}" LICENSE; \
     done; \
-    mkdir -p /artifacts/windows /workspace/windows; \
+    mkdir -p /workspace/windows; \
     cp func_windows_amd64.exe /workspace/windows/func.exe; \
     cp LICENSE /workspace/windows/; \
     zip --quiet --junk-path /artifacts/windows/func-windows-amd64.zip /workspace/windows/*
