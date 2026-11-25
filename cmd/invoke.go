@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -150,8 +151,10 @@ func runInvoke(cmd *cobra.Command, _ []string, newClient ClientFactory) (err err
 	if err != nil {
 		return
 	}
+	if !f.Initialized() {
+		return NewErrNotInitializedFromPath(f.Root, "invoke")
+	}
 	if err = f.Validate(); err != nil {
-		fmt.Printf("error validating function at '%v'. %v\n", f.Root, err)
 		return err
 	}
 
@@ -160,10 +163,6 @@ func runInvoke(cmd *cobra.Command, _ []string, newClient ClientFactory) (err err
 			"Warning: invoking as %q, but function declares type %q in func.yaml.\n"+
 				"   This may fail unless you rebuild or update func.yaml with `invoke: %s`.\n\n",
 			cfg.Format, f.Invoke, cfg.Format)
-	}
-
-	if !f.Initialized() {
-		return NewErrNotInitializedFromPath(f.Root, "invoke")
 	}
 
 	// If extensions were provided, ensure the format is cloudevent, otherwise return an error.
@@ -316,12 +315,18 @@ func newInvokeConfig() (cfg invokeConfig, err error) {
 	return
 }
 
+// extensionName matches the CloudEvents spec restriction on attribute names.
+var extensionName = regexp.MustCompile(`^[a-z0-9]+$`)
+
 func (c invokeConfig) parseExtensions() (map[string]string, error) {
 	result := make(map[string]string)
 	for _, ext := range c.Extensions {
 		parts := strings.SplitN(ext, "=", 2)
 		if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" {
 			return nil, fmt.Errorf("invalid --extension %q: must be in key=value format", ext)
+		}
+		if !extensionName.MatchString(parts[0]) {
+			return nil, fmt.Errorf("invalid --extension %q: name must consist of lower-case letters (a-z) or digits (0-9)", ext)
 		}
 		result[parts[0]] = parts[1]
 	}

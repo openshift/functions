@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -105,6 +106,9 @@ func TestInvokeExtensionsMapMalformed(t *testing.T) {
 	}{
 		{"missing equals", []string{"valid=ok", "badformat"}},
 		{"empty key", []string{"valid=ok", "=nokey"}},
+		{"hyphen in name", []string{"my-ext=v"}},
+		{"underscore in name", []string{"my_ext=v"}},
+		{"upper case name", []string{"MyExt=v"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -112,6 +116,67 @@ func TestInvokeExtensionsMapMalformed(t *testing.T) {
 			_, err := c.parseExtensions()
 			if err == nil {
 				t.Fatalf("expected error for %v, got nil", tc.exts)
+			}
+		})
+	}
+}
+
+// TestInvoke_ValidationErrorNotPrinted ensures invoke returns a validation
+// error without also printing it to stdout. The CLI prints returned errors
+// once, so printing here showed the same error twice.
+func TestInvoke_ValidationErrorNotPrinted(t *testing.T) {
+	root := FromTempDirectory(t)
+	// An env entry with a name but no value fails validation.
+	funcYaml := "name: myfunc\nruntime: go\nrun:\n  envs:\n  - name: FOO\n"
+	if err := os.WriteFile(filepath.Join(root, fn.FunctionFile), []byte(funcYaml), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := NewInvokeCmd(NewTestClient())
+	cmd.SetArgs([]string{})
+	stdout := piped(t)
+	err := cmd.Execute()
+	out := stdout()
+
+	if err == nil || !strings.Contains(err.Error(), "missing value field") {
+		t.Fatalf("expected the validation error to be returned, got: %v", err)
+	}
+	if out != "" {
+		t.Fatalf("expected nothing on stdout, got: %q", out)
+	}
+}
+
+// TestInvokeExtensionsRequireCloudEvent ensures --extension is rejected unless
+// the effective format (flag, else func.yaml) is cloudevent.
+func TestInvokeExtensionsRequireCloudEvent(t *testing.T) {
+	const guardErr = "only valid with cloudevents"
+	cases := []struct {
+		name     string
+		invoke   string // func.yaml 'invoke'
+		args     []string
+		rejected bool
+	}{
+		{"func.yaml http", "http", []string{"-e", "foo=bar"}, true},
+		{"func.yaml cloudevent", "cloudevent", []string{"-e", "foo=bar"}, false},
+		{"flag http overrides func.yaml", "cloudevent", []string{"-f", "http", "-e", "foo=bar"}, true},
+		{"flag cloudevent overrides func.yaml", "http", []string{"-f", "cloudevent", "-e", "foo=bar"}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := FromTempDirectory(t)
+			f, err := fn.New().Init(fn.Function{Runtime: "go", Root: root})
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.Invoke = tc.invoke
+			if err := f.Write(); err != nil {
+				t.Fatal(err)
+			}
+			cmd := NewInvokeCmd(NewTestClient())
+			cmd.SetArgs(tc.args)
+			err = cmd.Execute()
+			if got := err != nil && strings.Contains(err.Error(), guardErr); got != tc.rejected {
+				t.Fatalf("expected rejected=%v, got error: %v", tc.rejected, err)
 			}
 		})
 	}
