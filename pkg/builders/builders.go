@@ -16,7 +16,7 @@ const (
 	Host    = "host"
 	Pack    = "pack"
 	S2I     = "s2i"
-	Default = S2I
+	Default = Pack
 )
 
 // Known builder names with a pretty-printed string representation
